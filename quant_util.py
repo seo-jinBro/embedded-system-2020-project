@@ -256,6 +256,7 @@ class QuantizedLayer(ABC):
             state_dict[prefix + "quantized_weight"] = state_dict[
                 prefix + "quantized_weight"
             ].char()
+            # TODO: bit 에 따라 처리를 다르게 해야함
         else:
             state_dict.pop(prefix + "quantized_weight", None)
             state_dict.pop(prefix + "_weight_scale", None)
@@ -363,6 +364,7 @@ class QuantizedLinear(QuantizedLayer, nn.Linear):
                     state_dict[prefix + "_quantized_bias"] = state_dict[
                         prefix + "_quantized_bias"
                     ].int()
+                    # TODO: bit 에 따라 저장을 다르게 해야함
                 except KeyError:
                     # in case there is no bias dont do anything
                     pass

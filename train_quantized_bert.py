@@ -25,11 +25,17 @@ from typing import Optional
 
 import transformers
 from datasets import load_dataset, load_metric
-from transformers import (AutoConfig, AutoModelForQuestionAnswering,
-                          AutoTokenizer, DataCollatorWithPadding,
-                          EvalPrediction, HfArgumentParser,
-                          PreTrainedTokenizerFast, TrainingArguments,
-                          default_data_collator, set_seed)
+from transformers import (
+    AutoConfig,
+    AutoTokenizer,
+    DataCollatorWithPadding,
+    EvalPrediction,
+    HfArgumentParser,
+    PreTrainedTokenizerFast,
+    TrainingArguments,
+    default_data_collator,
+    set_seed,
+)
 from transformers.trainer_utils import is_main_process
 
 from quantized_bert import QuantizedBertForQuestionAnswering
@@ -253,7 +259,7 @@ def main():
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
     config = AutoConfig.from_pretrained(
-        "bert-base-uncased",
+        model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
     )
     tokenizer = AutoTokenizer.from_pretrained(
@@ -261,15 +267,11 @@ def main():
         cache_dir=model_args.cache_dir,
         use_fast=True,
     )
-    # model = AutoModelForQuestionAnswering.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     from_tf=bool(".ckpt" in model_args.model_name_or_path),
-    #     config=config,
-    #     cache_dir=model_args.cache_dir,
-    # )
     model = QuantizedBertForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
-        from_8bit=False,
+        from_8bit=False
+        if model_args.model_name_or_path == "bert-base-uncased"
+        else True,
         config=config,
         cache_dir=model_args.cache_dir,
     )

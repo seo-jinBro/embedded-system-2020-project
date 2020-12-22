@@ -16,6 +16,8 @@
 A subclass of `Trainer` specific to Question-Answering tasks
 """
 
+from time import time
+
 from transformers import Trainer, is_datasets_available, is_torch_tpu_available
 from transformers.trainer_utils import PredictionOutput
 
@@ -41,6 +43,7 @@ class QuestionAnsweringTrainer(Trainer):
         # Temporarily disable metric computation, we will do it in the loop here.
         compute_metrics = self.compute_metrics
         self.compute_metrics = None
+        before_time = time()
         try:
             output = self.prediction_loop(
                 eval_dataloader,
@@ -51,14 +54,30 @@ class QuestionAnsweringTrainer(Trainer):
                 ignore_keys=ignore_keys,
             )
         finally:
+            # log time consumption
+            total_time_ms = (time() - before_time) * 1000
+            print(
+                {
+                    "dataset_size": len(eval_dataset),
+                    "total_time_ms": total_time_ms,
+                    "avg_time_ms": total_time_ms / len(eval_dataset),
+                }
+            )
+            self.log({"total_time_ms": total_time_ms})
+
             self.compute_metrics = compute_metrics
 
         # We might have removed columns from the dataset so we put them back.
         if isinstance(eval_dataset, datasets.Dataset):
-            eval_dataset.set_format(type=eval_dataset.format["type"], columns=list(eval_dataset.features.keys()))
+            eval_dataset.set_format(
+                type=eval_dataset.format["type"],
+                columns=list(eval_dataset.features.keys()),
+            )
 
         if self.post_process_function is not None and self.compute_metrics is not None:
-            eval_preds = self.post_process_function(eval_examples, eval_dataset, output.predictions)
+            eval_preds = self.post_process_function(
+                eval_examples, eval_dataset, output.predictions
+            )
             metrics = self.compute_metrics(eval_preds)
 
             self.log(metrics)
@@ -69,7 +88,9 @@ class QuestionAnsweringTrainer(Trainer):
             # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
             xm.master_print(met.metrics_report())
 
-        self.control = self.callback_handler.on_evaluate(self.args, self.state, self.control, metrics)
+        self.control = self.callback_handler.on_evaluate(
+            self.args, self.state, self.control, metrics
+        )
         return metrics
 
     def predict(self, test_dataset, test_examples, ignore_keys=None):
@@ -95,9 +116,18 @@ class QuestionAnsweringTrainer(Trainer):
 
         # We might have removed columns from the dataset so we put them back.
         if isinstance(test_dataset, datasets.Dataset):
-            test_dataset.set_format(type=test_dataset.format["type"], columns=list(test_dataset.features.keys()))
+            test_dataset.set_format(
+                type=test_dataset.format["type"],
+                columns=list(test_dataset.features.keys()),
+            )
 
-        eval_preds = self.post_process_function(test_examples, test_dataset, output.predictions)
+        eval_preds = self.post_process_function(
+            test_examples, test_dataset, output.predictions
+        )
         metrics = self.compute_metrics(eval_preds)
 
-        return PredictionOutput(predictions=eval_preds.predictions, label_ids=eval_preds.label_ids, metrics=metrics)
+        return PredictionOutput(
+            predictions=eval_preds.predictions,
+            label_ids=eval_preds.label_ids,
+            metrics=metrics,
+        )

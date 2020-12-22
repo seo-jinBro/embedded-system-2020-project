@@ -65,7 +65,7 @@ def quantized_linear_setup(config, *args, **kwargs):
         for k, v in QuantizationConfig.ATTRIBUTES.items():
             setattr(quant_config, k, v)
         linear = QuantizedLinear.from_config(*args, **kwargs, config=quant_config)
-    except AttributeError as e:
+    except AttributeError:
         linear = nn.Linear(*args, **kwargs)
     return linear
 
@@ -79,13 +79,9 @@ def quantized_embedding_setup(config, *args, **kwargs):
         for k, v in QuantizationConfig.ATTRIBUTES.items():
             setattr(quant_config, k, v)
         embedding = QuantizedEmbedding.from_config(*args, **kwargs, config=quant_config)
-    except AttributeError as e:
+    except AttributeError:
         embedding = nn.Embedding(*args, **kwargs)
     return embedding
-
-
-# class QuantizedBertConfig(BertConfig):
-#     pretrained_config_archive_map = QUANT_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP
 
 
 class QuantizedBertEmbeddings(BertEmbeddings):
@@ -261,12 +257,6 @@ class QuantizedBertPreTrainedModel(BertPreTrainedModel):
         config = kwargs.pop("config", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
 
-        # Load config
-        # if config is None:
-        #     config = cls.config_class.from_pretrained(
-        #         pretrained_model_name_or_path, *args, **kwargs
-        #     )
-
         # Load model
         model_file = os.path.join(pretrained_model_name_or_path, QUANT_WEIGHTS_NAME)
 
@@ -278,6 +268,8 @@ class QuantizedBertPreTrainedModel(BertPreTrainedModel):
         # Get state dict of model
         state_dict = torch.load(model_file, map_location="cpu")
         logger.info("loading weights file {}".format(model_file))
+        model.toggle_8bit(True)
+        print("loading weights file {}".format(model_file))
 
         # Load from a PyTorch state_dict
         missing_keys = []
